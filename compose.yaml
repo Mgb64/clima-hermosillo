@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: clima
+      POSTGRES_USER: clima
+      POSTGRES_PASSWORD: clima_demo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clima -d clima"]
+      interval: 5s
+      retries: 10
+
+  collector:
+    build: ./collector
+    environment:
+      DATABASE_URL: postgresql://clima:clima_demo@db:5432/clima
+      UPDATE_SECONDS: '600'
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    build: ./app
+    environment:
+      DATABASE_URL: postgresql://clima:clima_demo@db:5432/clima
+    ports:
+      - '8501:8501'
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
